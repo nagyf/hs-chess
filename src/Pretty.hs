@@ -1,6 +1,6 @@
 module Pretty (prettyBoard) where
 
-import Engine
+import Board
 
 -- | Pretty print the board
 prettyBoard :: Board -> String
