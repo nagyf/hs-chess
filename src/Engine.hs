@@ -3,10 +3,12 @@ module Engine where
 import Data.List (nub)
 import Control.Monad
 
+-- | The color of a piece
 data PieceColor = White
                 | Black
                 deriving (Show, Eq)
 
+-- | The type of a piece
 data PieceType = Pawn
                 | Knight
                 | Bishop
@@ -15,12 +17,20 @@ data PieceType = Pawn
                 | King
                 deriving(Show, Eq)
 
+-- | The position of a piece where the first coordinate represents the column
+--   and the second represents the row
 type Pos = (Int, Int)
+
+-- | Represents a piece on the board
 data Piece = Piece PieceColor PieceType Pos deriving(Show, Eq)
+
+-- | Represents a chess board
 type Board = [Piece]
 
+-- | Adds up 2 position vectors by coordinates
+infixr 9 <+>
 (<+>) :: Pos -> Pos -> Pos
-(x1,y1) <+> (x2,y2) = (x1+x2, y1+y2)
+(x1, y1) <+> (x2, y2) = (x1+x2, y1+y2)
 
 -- | Creates an empty board
 emptyBoard :: Board
@@ -43,6 +53,7 @@ initialBoard = ws ++ bs
         pieces White = zipWith ($) (map (Piece White) pieceRow) (row 1)
         pieces Black = zipWith ($) (map (Piece Black) pieceRow) (row 8)
 
+        -- | Returns the Pawns for the given color
         pawns :: PieceColor -> [Piece]
         pawns White = map (Piece White Pawn) (row 2)
         pawns Black = map (Piece Black Pawn)  (row 7)
