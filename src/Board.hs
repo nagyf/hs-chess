@@ -62,13 +62,13 @@ initialBoard = ws ++ bs
 
 -- | Returns the piece at the given position or Nothing
 pieceAt :: Board -> Pos -> Maybe Piece
-pieceAt b p = case length pieces of
+pieceAt board p = case length pieces of
                     0 -> Nothing
                     _ -> return $ head pieces
     where
         -- | Pieces at the given position
         pieces :: [Piece]
-        pieces = filter (\(Piece _ _ pos) -> p == pos) b
+        pieces = filter (\(Piece _ _ pos) -> p == pos) board
 
 -- | Return the positions in a row
 row :: Int -> [Pos]
