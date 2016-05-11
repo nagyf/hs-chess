@@ -14,21 +14,30 @@ prettyRows n b = prettyRow n b : "\n": prettyRows (n - 1) b
         prettyRow m bb =
             let foundPieces = map (pieceAt bb) [(x, m) | x <- [1..8]]
                 rowHeader = show m ++ " |"
-            in rowHeader ++ concatMap prettyPiece foundPieces
+            in rowHeader ++ concatMap (fromMaybe' " .. " prettyPiece) foundPieces
 
-prettyPiece :: Maybe Piece -> String
-prettyPiece Nothing = " .. "
-prettyPiece (Just (Piece c Pawn _ )) = wrap " " $ prettyColor c ++ "P"
-prettyPiece (Just (Piece c Bishop _ )) = wrap " " $ prettyColor c ++ "B"
-prettyPiece (Just (Piece c Knight _ )) = wrap " " $ prettyColor c ++ "N"
-prettyPiece (Just (Piece c Rook _ )) = wrap " " $ prettyColor c ++ "R"
-prettyPiece (Just (Piece c King _ )) = wrap " " $ prettyColor c ++ "K"
-prettyPiece (Just (Piece c Queen _ )) = wrap " " $ prettyColor c ++ "Q"
+-- | Pretty print a piece
+prettyPiece :: Piece -> String
+prettyPiece p = wrap " " $ prettyColor (color p) ++ showPiece p
+    where
+        showPiece :: Piece -> String
+        showPiece (Piece c Pawn _ ) = "P"
+        showPiece (Piece c Bishop _ ) = "B"
+        showPiece (Piece c Knight _ ) = "N"
+        showPiece (Piece c Rook _ ) = "R"
+        showPiece (Piece c King _ ) = "K"
+        showPiece (Piece c Queen _ ) = "Q"
 
 -- | Pretty print a color
 prettyColor :: PieceColor -> String
 prettyColor White = "W"
 prettyColor Black = "B"
+
+-- | Given a default value and a function, if the value is nothing return the
+-- default value, else execute the function on the Just value and return that
+fromMaybe' :: a -> (b -> a) -> Maybe b -> a
+fromMaybe' def _ Nothing = def
+fromMaybe' _ f (Just x) = f x
 
 wrap :: String -> String -> String
 wrap border str = border ++ str ++ border

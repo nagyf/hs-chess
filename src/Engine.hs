@@ -7,11 +7,11 @@ import Board
 
 -- | Return the white pieces from the board
 whites :: Board -> [Piece]
-whites = filter (\(Piece c _ _) -> c == White)
+whites = filter (\piece -> color piece == White)
 
 -- | Return the black pieces from the board
 blacks :: Board -> [Piece]
-blacks = filter (\(Piece c _ _) -> c == Black)
+blacks = filter (\piece -> color piece == Black)
 
 -- | Return the value of the piece
 valuePiece :: Piece -> Int

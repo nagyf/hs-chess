@@ -19,7 +19,10 @@ data PieceType = Pawn
 type Pos = (Int, Int)
 
 -- | Represents a piece on the board
-data Piece = Piece PieceColor PieceType Pos deriving(Show, Eq)
+data Piece = Piece { color       :: PieceColor,
+                     pieceType   :: PieceType,
+                     pos         :: Pos
+                    } deriving (Show, Eq)
 
 -- | Represents a chess board
 type Board = [Piece]
@@ -55,7 +58,7 @@ initialBoard = ws ++ bs
         -- | Returns the Pawns for the given color
         pawns :: PieceColor -> [Piece]
         pawns White = map (Piece White Pawn) (row 2)
-        pawns Black = map (Piece Black Pawn)  (row 7)
+        pawns Black = map (Piece Black Pawn) (row 7)
 
         pieceRow :: [PieceType]
         pieceRow = [Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook]
@@ -68,7 +71,7 @@ pieceAt board p = case length pieces of
     where
         -- | Pieces at the given position
         pieces :: [Piece]
-        pieces = filter (\(Piece _ _ pos) -> p == pos) board
+        pieces = filter (\piece -> p == pos piece) board
 
 -- | Return the positions in a row
 row :: Int -> [Pos]
