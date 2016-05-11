@@ -1,6 +1,7 @@
 module Engine where
 
 import Data.List (nub)
+import Data.Maybe (mapMaybe)
 import Control.Monad
 import Board
 
@@ -51,10 +52,7 @@ cross (x,y) = nub $ row y ++ column x
 
 -- | Diagonal coordinates relative to the given position
 diagonals :: Pos -> [Pos]
-diagonals p = filter onBoard $ nub $ map (p <+>) deltas
+diagonals p = nub $ mapMaybe (p <+>) deltas
     where
         deltas = [(dx,dy) | dx <- [-8..8], dy <-[dx,-dx]]
 
--- | Returns True, if the Position is inside the board
-onBoard :: Pos -> Bool
-onBoard (x, y) = x > 0 && y > 0 && x < 9 && y < 9

@@ -26,8 +26,10 @@ type Board = [Piece]
 
 -- | Adds up 2 position vectors by coordinates
 infixr 9 <+>
-(<+>) :: Pos -> Pos -> Pos
-(x1, y1) <+> (x2, y2) = (x1+x2, y1+y2)
+(<+>) :: Pos -> Pos -> Maybe Pos
+(x1, y1) <+> (x2, y2) =
+    let pos' = (x1+x2, y1+y2)
+    in if onBoard pos' then Just pos' else Nothing
 
 -- | Creates an empty board
 emptyBoard :: Board
@@ -75,3 +77,7 @@ row n = [(x,n) | x <- [1..8]]
 -- | Return the positions in a row
 column :: Int -> [Pos]
 column n = [(n,y) | y <- [1..8]]
+
+-- | Returns True, if the Position is inside the board
+onBoard :: Pos -> Bool
+onBoard (x, y) = x > 0 && y > 0 && x < 9 && y < 9
