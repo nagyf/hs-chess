@@ -1,5 +1,7 @@
 module Board where
 
+import Geometry
+
 -- | The color of a piece
 data PieceColor = White
                 | Black
@@ -14,10 +16,6 @@ data PieceType = Pawn
                 | King
                 deriving(Show, Eq)
 
--- | The position of a piece where the first coordinate represents the column
---   and the second represents the row
-type Pos = (Int, Int)
-
 -- | Represents a piece on the board
 data Piece = Piece { color       :: PieceColor,
                      pieceType   :: PieceType,
@@ -26,13 +24,6 @@ data Piece = Piece { color       :: PieceColor,
 
 -- | Represents a chess board
 type Board = [Piece]
-
--- | Adds up 2 position vectors by coordinates
-infixr 9 <+>
-(<+>) :: Pos -> Pos -> Maybe Pos
-(x1, y1) <+> (x2, y2) =
-    let pos' = (x1+x2, y1+y2)
-    in if onBoard pos' then Just pos' else Nothing
 
 -- | Creates an empty board
 emptyBoard :: Board
@@ -72,15 +63,3 @@ pieceAt board p = case length pieces of
         -- | Pieces at the given position
         pieces :: [Piece]
         pieces = filter (\piece -> p == pos piece) board
-
--- | Return the positions in a row
-row :: Int -> [Pos]
-row n = [(x,n) | x <- [1..8]]
-
--- | Return the positions in a row
-column :: Int -> [Pos]
-column n = [(n,y) | y <- [1..8]]
-
--- | Returns True, if the Position is inside the board
-onBoard :: Pos -> Bool
-onBoard (x, y) = x > 0 && y > 0 && x < 9 && y < 9
