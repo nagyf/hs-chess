@@ -28,13 +28,13 @@ moves (Piece Black Pawn (x,y)) = [(x,y-1)]
 moves (Piece _ Bishop p) = diagonals p
 moves (Piece _ Rook p) = cross p
 moves (Piece _ Queen p) = allDirections p
-moves (Piece _ King p) = ambientPos p onBoard
+moves (Piece _ King p) = ambientPos p
 moves (Piece _ Knight (x,y)) = do
     let ds = [-2, -1, 1, 2]
     dx <- ds
     dy <- ds
     guard $ abs dx /= abs dy && onBoard (x+dx,y+dy)
-    return (x+dx,y+dy)
+    return (x+dx, y+dy)
 
 -- | Return the legal moves of the piece
 legalMoves :: Board -> Piece -> [Pos]
@@ -47,7 +47,7 @@ emptyOrEnemy b c p = case pieceAt b p of
     Nothing     -> True
 
 emptyLine :: Board -> Pos -> Pos -> Bool
-emptyLine b start end = undefined
+emptyLine = undefined
 
 
 

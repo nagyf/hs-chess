@@ -1,5 +1,6 @@
 module Board where
 
+import Data.Maybe (listToMaybe)
 import Geometry
 
 -- | The color of a piece
@@ -56,9 +57,7 @@ initialBoard = ws ++ bs
 
 -- | Returns the piece at the given position or Nothing
 pieceAt :: Board -> Pos -> Maybe Piece
-pieceAt board p = case length pieces of
-                    0 -> Nothing
-                    _ -> return $ head pieces
+pieceAt board p = listToMaybe pieces
     where
         -- | Pieces at the given position
         pieces :: [Piece]
