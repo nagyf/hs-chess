@@ -15,16 +15,20 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Main,Board,Engine,Pretty
+  exposed-modules:     App,Board,Engine,Pretty,Geometry,SAN
   build-depends:       base >= 4.7 && < 5
+                      , parsec
+                      , containers
   default-language:    Haskell2010
 
 executable hs-chess-exe
   hs-source-dirs:      app
-  main-is:             App.hs
+  main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
                      , hs-chess
+                     , containers
+                     , parsec
   default-language:    Haskell2010
 
 test-suite hs-chess-test
@@ -33,6 +37,8 @@ test-suite hs-chess-test
   main-is:             Spec.hs
   build-depends:       base
                      , hs-chess
+                     , containers
+                     , parsec
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 

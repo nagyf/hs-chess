@@ -56,7 +56,7 @@ normalCapture c = do
 
 pawnCapture :: PieceColor -> Parser Move
 pawnCapture c = do
-    from <- liftM columnNameToInt $ columnName
+    from <- fmap columnNameToInt columnName
     char 'x'
     pos <- coordinate
     endOfMove
@@ -106,8 +106,8 @@ pieceTypeParser = do
 
 coordinate :: Parser (Int, Int)
 coordinate = do
-    col <- liftM (columnNameToInt) $ anyChar
-    row <- liftM read $ many1 digit
+    col <- fmap columnNameToInt anyChar
+    row <- read <$> many1 digit
     return (col, row)
 
 columnName :: Parser Char
