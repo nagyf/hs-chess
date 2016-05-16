@@ -49,18 +49,21 @@ move c =
 normalCapture :: PieceColor -> Parser Move
 normalCapture c = do
     p <- pieceTypeParser
-    char 'x'
-    pos <- coordinate
-    endOfMove
+    pos <- capturePos
     return $ Capture c p pos
 
 pawnCapture :: PieceColor -> Parser Move
 pawnCapture c = do
     from <- fmap columnNameToInt columnName
+    pos <- capturePos
+    return $ PawnCapture c from pos
+
+capturePos :: Parser Pos
+capturePos = do
     char 'x'
     pos <- coordinate
     endOfMove
-    return $ PawnCapture c from pos
+    return pos
 
 normalMove :: PieceColor -> Parser Move
 normalMove color = do
