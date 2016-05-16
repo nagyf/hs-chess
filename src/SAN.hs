@@ -5,7 +5,7 @@ import Text.ParserCombinators.Parsec
 import Control.Monad (liftM)
 import Data.Maybe
 import Data.Map as Map
-import Board
+import Board hiding (pieceType)
 import Geometry
 
 data Move = Move PieceColor PieceType Pos
@@ -48,7 +48,7 @@ move c =
 
 normalCapture :: PieceColor -> Parser Move
 normalCapture c = do
-    p <- pieceTypeParser
+    p <- pieceType
     pos <- capturePos
     return $ Capture c p pos
 
@@ -67,7 +67,7 @@ capturePos = do
 
 normalMove :: PieceColor -> Parser Move
 normalMove color = do
-    p <- pieceTypeParser
+    p <- pieceType
     c <- coordinate
     endOfMove
     return $ Move color p c
@@ -81,7 +81,7 @@ pawnMove color = do
 pawnPromotion :: PieceColor -> Parser Move
 pawnPromotion color = do
     c <- coordinate
-    promoted <- pieceTypeParser
+    promoted <- pieceType
     endOfMove
     return $ PawnPromotion color promoted c
 
@@ -102,8 +102,8 @@ queenSideCastle color = do
     endOfMove
     return $ QueenSideCastle color
 
-pieceTypeParser :: Parser PieceType
-pieceTypeParser = do
+pieceType :: Parser PieceType
+pieceType = do
     ch <- anyChar
     return $ fromJust $ Map.lookup ch pieceTypes
 
