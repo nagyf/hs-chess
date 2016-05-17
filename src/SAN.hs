@@ -11,13 +11,16 @@ import Data.Map as Map
 import Board hiding (pieceType, color, pos)
 import Geometry hiding (row)
 
+data MoveFlag = Check
+                | CheckMate deriving (Show)
+
 -- | Represents a chess move
-data Move = Move PieceColor PieceType Pos
-            | Capture PieceColor PieceType Pos
-            | PawnCapture PieceColor Int Pos
-            | PawnPromotion PieceColor PieceType Pos
-            | KingSideCastle PieceColor
-            | QueenSideCastle PieceColor
+data Move = Move PieceColor PieceType Pos [MoveFlag]
+            | Capture PieceColor PieceType Pos [MoveFlag]
+            | PawnCapture PieceColor Int Pos [MoveFlag]
+            | PawnPromotion PieceColor PieceType Pos [MoveFlag]
+            | KingSideCastle PieceColor [MoveFlag]
+            | QueenSideCastle PieceColor [MoveFlag]
             deriving (Show)
 
 -- | Parse a series of moves from the input string
@@ -48,52 +51,50 @@ roundNumber = do
 
 -- | Parser for a single move
 move :: PieceColor -> Parser Move
-move c =
-    try (pawnPromotion c) <|>
-    try (pawnCapture c) <|>
-    try (normalCapture c) <|>
-    try (pawnMove c) <|>
-    try (normalMove c) <|>
-    try (castling c)
+move color =
+    try (pawnPromotion color) <|>
+    try (pawnCapture color) <|>
+    try (pawnMove color) <|>
+    try (normalCapture color) <|>
+    try (normalMove color) <|>
+    try (castling color)
 
 normalCapture :: PieceColor -> Parser Move
-normalCapture c = do
+normalCapture color = do
     p <- pieceType
     pos <- capturePos
-    return $ Capture c p pos
+    flags <- endOfMove
+    return $ Capture color p pos flags
 
 pawnCapture :: PieceColor -> Parser Move
-pawnCapture c = do
+pawnCapture color = do
     from <- fmap columnNameToInt columnName
     pos <- capturePos
-    return $ PawnCapture c from pos
+    flags <- endOfMove
+    return $ PawnCapture color from pos flags
 
 capturePos :: Parser Pos
-capturePos = do
-    _ <- char 'x'
-    pos <- coordinate
-    _ <- endOfMove
-    return pos
+capturePos = char 'x' >> coordinate
 
 normalMove :: PieceColor -> Parser Move
 normalMove color = do
     p <- pieceType
     c <- coordinate
-    _ <- endOfMove
-    return $ Move color p c
+    flags <- endOfMove
+    return $ Move color p c flags
 
 pawnMove :: PieceColor -> Parser Move
 pawnMove color = do
     c <- coordinate
-    _ <- endOfMove
-    return $ Move color Pawn c
+    flags <- endOfMove
+    return $ Move color Pawn c flags
 
 pawnPromotion :: PieceColor -> Parser Move
 pawnPromotion color = do
     c <- coordinate
     promoted <- pieceType
-    _ <- endOfMove
-    return $ PawnPromotion color promoted c
+    flags <- endOfMove
+    return $ PawnPromotion color promoted c flags
 
 castling :: PieceColor -> Parser Move
 castling color =
@@ -102,25 +103,25 @@ castling color =
 
 kingSideCastle :: PieceColor -> Parser Move
 kingSideCastle color =
-    string "O-O" >> endOfMove >> return (KingSideCastle color)
+    string "O-O" >> endOfMove >>= fmap return (KingSideCastle color)
 
 queenSideCastle :: PieceColor -> Parser Move
 queenSideCastle color =
-    string "O-O-O" >> endOfMove >> return (QueenSideCastle color)
+    string "O-O-O" >> endOfMove >>= fmap return (QueenSideCastle color)
 
 pieceType :: Parser PieceType
 pieceType = do
-    ch <- anyChar
+    ch <- oneOf (Map.keys pieceTypes)
     return $ fromJust $ Map.lookup ch pieceTypes
 
-coordinate :: Parser (Int, Int)
+coordinate :: Parser Pos
 coordinate = do
-    col <- fmap columnNameToInt anyChar
+    col <- fmap columnNameToInt columnName
     row <- read <$> many1 digit
     return (col, row)
 
 columnName :: Parser Char
-columnName = oneOf ['a'..'h']
+columnName = oneOf columnNames
 
 separator :: Parser ()
 separator = skipMany1 $ space <|> char '.' <|> endOfLine
@@ -128,17 +129,37 @@ separator = skipMany1 $ space <|> char '.' <|> endOfLine
 endOfLine :: Parser Char
 endOfLine = char '\n'
 
-endOfMove :: Parser Char
-endOfMove = space <|> endOfLine
+endOfMove :: Parser [MoveFlag]
+endOfMove = eomWithoutFlags <|> eomWithFlags
+    where
+        eomWithoutFlags :: Parser [MoveFlag]
+        eomWithoutFlags = (space <|> endOfLine) >> return []
+
+        eomWithFlags :: Parser [MoveFlag]
+        eomWithFlags = do
+            flags <- flagParser
+            _ <- space <|> endOfLine
+            return flags
+
+flagParser :: Parser [MoveFlag]
+flagParser = do
+    flag <- oneOf ['+', '#']
+    case flag of
+        '+' -> return [Check]
+        '#' -> return [CheckMate]
+        _   -> return []
 
 -- | Converts a column label to a number
 columnNameToInt :: Char -> Int
-columnNameToInt ch = fromJust $ Map.lookup ch columnNames
+columnNameToInt ch = fromJust $ Map.lookup ch columnNameMapping
 
 -- | Returns a map with ('a',1),('b',2)... pairs, to easily map between the
 -- column name and it's number representation
-columnNames :: Map Char Int
-columnNames = Map.fromList $ zip ['a'..'h'] [1..]
+columnNameMapping :: Map Char Int
+columnNameMapping = Map.fromList $ zip columnNames [1..]
+
+columnNames :: String
+columnNames = ['a'..'h']
 
 -- | Returns a map that contains piece name -> piece type mappings
 pieceTypes :: Map Char PieceType
