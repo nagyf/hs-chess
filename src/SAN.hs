@@ -16,12 +16,12 @@ data MoveFlag = Check
                 | CheckMate deriving (Show)
 
 -- | Represents a chess move
-data Move = Move PieceColor PieceType Pos [MoveFlag]
-            | Capture PieceColor PieceType Pos [MoveFlag]
-            | PawnCapture PieceColor Int Pos [MoveFlag]
-            | PawnPromotion PieceColor PieceType Pos [MoveFlag]
-            | KingSideCastle PieceColor [MoveFlag]
-            | QueenSideCastle PieceColor [MoveFlag]
+data Move = Move PieceColor PieceType Pos [MoveFlag] -- ^ Nd6, e8
+            | Capture PieceColor PieceType Pos [MoveFlag] -- ^ Nxc4
+            | PawnCapture PieceColor Int Pos [MoveFlag] -- ^ fxa4
+            | PawnPromotion PieceColor PieceType Pos [MoveFlag] -- ^ e8Q
+            | KingSideCastle PieceColor [MoveFlag] -- ^ o-o
+            | QueenSideCastle PieceColor [MoveFlag] -- ^ o-o-o
             deriving (Show)
 
 -- | Parse a series of moves from the input string
