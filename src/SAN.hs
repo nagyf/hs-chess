@@ -47,7 +47,7 @@ round = do
 roundNumber :: Parser Int
 roundNumber = do
     digits <- many1 digit
-    separator
+    _ <- char '.' >> skipMany (space <|> tab)
     return $ read digits
 
 -- | Parser for a single move
@@ -123,9 +123,6 @@ coordinate = do
 
 columnName :: Parser Char
 columnName = oneOf columnNames
-
-separator :: Parser ()
-separator = skipMany1 (space <|> char '.') >> skipMany endOfLine
 
 endOfLine :: Parser ()
 endOfLine =
