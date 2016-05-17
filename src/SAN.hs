@@ -22,6 +22,7 @@ data Move = Move PieceColor PieceType Pos [MoveFlag] -- ^ Nd6, e8
             | PawnPromotion PieceColor PieceType Pos [MoveFlag] -- ^ e8Q
             | KingSideCastle PieceColor [MoveFlag] -- ^ o-o
             | QueenSideCastle PieceColor [MoveFlag] -- ^ o-o-o
+            | EnPassant PieceColor Int Pos [MoveFlag] -- ^ exd6e.p.
             deriving (Show)
 
 -- | Parse a series of moves from the input string
@@ -53,12 +54,20 @@ roundNumber = do
 -- | Parser for a single move
 move :: PieceColor -> Parser Move
 move color =
+    try (enPassant color) <|>
     try (pawnPromotion color) <|>
     try (pawnCapture color) <|>
     try (pawnMove color) <|>
     try (normalCapture color) <|>
     try (normalMove color) <|>
     try (castling color)
+
+enPassant :: PieceColor -> Parser Move
+enPassant color = do
+    from <- fmap columnNameToInt columnName
+    to <- capturePos
+    flags <- string "e.p." >> endOfMove
+    return $ EnPassant color from to flags
 
 normalCapture :: PieceColor -> Parser Move
 normalCapture color = do
