@@ -1,13 +1,17 @@
-module SAN (parseMoves) where
+module SAN (
+    Move(..),
+    parseMoves
+    ) where
 
 import Prelude hiding (round)
 import Text.ParserCombinators.Parsec
-import Control.Monad (liftM)
 import Data.Maybe
 import Data.Map as Map
-import Board hiding (pieceType)
-import Geometry
 
+import Board hiding (pieceType, color, pos)
+import Geometry hiding (row)
+
+-- | Represents a chess move
 data Move = Move PieceColor PieceType Pos
             | Capture PieceColor PieceType Pos
             | PawnCapture PieceColor Int Pos
@@ -16,27 +20,33 @@ data Move = Move PieceColor PieceType Pos
             | QueenSideCastle PieceColor
             deriving (Show)
 
-parseMoves :: String -> Maybe [Move]
+-- | Parse a series of moves from the input string
+-- return either an error message or the parsed moves
+parseMoves :: String -> Either String [Move]
 parseMoves input = case parse match "match" input of
-    Left _ -> Nothing
-    Right moves -> Just (concatMap snd moves)
+    Left m -> Left (show m)
+    Right moves -> Right (concatMap snd moves)
 
+-- | Parse a chess match, which consists N rounds
 match :: Parser [(Int, [Move])]
 match = manyTill round eof
 
+-- | A round is a white move followed by a black move
 round :: Parser (Int, [Move])
 round = do
-    num <- stepNumber
+    num <- roundNumber
     whiteMove <- move White
     blackMove <- move Black
     return (num, [whiteMove, blackMove])
 
-stepNumber :: Parser Int
-stepNumber = do
+-- | Parser for the number of the round
+roundNumber :: Parser Int
+roundNumber = do
     digits <- many1 digit
     separator
     return $ read digits
 
+-- | Parser for a single move
 move :: PieceColor -> Parser Move
 move c =
     try (pawnPromotion c) <|>
@@ -60,29 +70,29 @@ pawnCapture c = do
 
 capturePos :: Parser Pos
 capturePos = do
-    char 'x'
+    _ <- char 'x'
     pos <- coordinate
-    endOfMove
+    _ <- endOfMove
     return pos
 
 normalMove :: PieceColor -> Parser Move
 normalMove color = do
     p <- pieceType
     c <- coordinate
-    endOfMove
+    _ <- endOfMove
     return $ Move color p c
 
 pawnMove :: PieceColor -> Parser Move
 pawnMove color = do
     c <- coordinate
-    endOfMove
+    _ <- endOfMove
     return $ Move color Pawn c
 
 pawnPromotion :: PieceColor -> Parser Move
 pawnPromotion color = do
     c <- coordinate
     promoted <- pieceType
-    endOfMove
+    _ <- endOfMove
     return $ PawnPromotion color promoted c
 
 castling :: PieceColor -> Parser Move
@@ -91,16 +101,12 @@ castling color =
     try (queenSideCastle color)
 
 kingSideCastle :: PieceColor -> Parser Move
-kingSideCastle color = do
-    string "O-O"
-    endOfMove
-    return $ KingSideCastle color
+kingSideCastle color =
+    string "O-O" >> endOfMove >> return (KingSideCastle color)
 
 queenSideCastle :: PieceColor -> Parser Move
-queenSideCastle color = do
-    string "O-O-O"
-    endOfMove
-    return $ QueenSideCastle color
+queenSideCastle color =
+    string "O-O-O" >> endOfMove >> return (QueenSideCastle color)
 
 pieceType :: Parser PieceType
 pieceType = do
@@ -125,12 +131,16 @@ endOfLine = char '\n'
 endOfMove :: Parser Char
 endOfMove = space <|> endOfLine
 
+-- | Converts a column label to a number
+columnNameToInt :: Char -> Int
+columnNameToInt ch = fromJust $ Map.lookup ch columnNames
+
+-- | Returns a map with ('a',1),('b',2)... pairs, to easily map between the
+-- column name and it's number representation
 columnNames :: Map Char Int
 columnNames = Map.fromList $ zip ['a'..'h'] [1..]
 
+-- | Returns a map that contains piece name -> piece type mappings
 pieceTypes :: Map Char PieceType
 pieceTypes = Map.fromList $
     zip ['N', 'B', 'R', 'Q', 'K'] [Knight, Bishop, Rook, Queen, King]
-
-columnNameToInt :: Char -> Int
-columnNameToInt ch = fromJust $ Map.lookup ch columnNames

@@ -21,12 +21,12 @@ prettyPiece :: Piece -> String
 prettyPiece p = wrap " " $ prettyColor (color p) ++ showPiece p
     where
         showPiece :: Piece -> String
-        showPiece (Piece c Pawn _ ) = "P"
-        showPiece (Piece c Bishop _ ) = "B"
-        showPiece (Piece c Knight _ ) = "N"
-        showPiece (Piece c Rook _ ) = "R"
-        showPiece (Piece c King _ ) = "K"
-        showPiece (Piece c Queen _ ) = "Q"
+        showPiece (Piece _ Pawn _ ) = "P"
+        showPiece (Piece _ Bishop _ ) = "B"
+        showPiece (Piece _ Knight _ ) = "N"
+        showPiece (Piece _ Rook _ ) = "R"
+        showPiece (Piece _ King _ ) = "K"
+        showPiece (Piece _ Queen _ ) = "Q"
 
 -- | Pretty print a color
 prettyColor :: PieceColor -> String
