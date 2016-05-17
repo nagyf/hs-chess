@@ -7,6 +7,7 @@ import Prelude hiding (round)
 import Text.ParserCombinators.Parsec
 import Data.Maybe
 import Data.Map as Map
+import Control.Monad (void)
 
 import Board hiding (pieceType, color, pos)
 import Geometry hiding (row)
@@ -124,21 +125,25 @@ columnName :: Parser Char
 columnName = oneOf columnNames
 
 separator :: Parser ()
-separator = skipMany1 $ space <|> char '.' <|> endOfLine
+separator = skipMany1 (space <|> char '.') >> skipMany endOfLine
 
-endOfLine :: Parser Char
-endOfLine = char '\n'
+endOfLine :: Parser ()
+endOfLine =
+    void (try (string "\n\r")
+    <|> try (string "\r\n")
+    <|> string "\n"
+    <|> string "\r")
 
 endOfMove :: Parser [MoveFlag]
-endOfMove = eomWithoutFlags <|> eomWithFlags
+endOfMove = try eomWithFlags <|> eomWithoutFlags
     where
         eomWithoutFlags :: Parser [MoveFlag]
-        eomWithoutFlags = (space <|> endOfLine) >> return []
+        eomWithoutFlags = skipMany space >> skipMany endOfLine >> return []
 
         eomWithFlags :: Parser [MoveFlag]
         eomWithFlags = do
             flags <- flagParser
-            _ <- space <|> endOfLine
+            skipMany space >> skipMany endOfLine
             return flags
 
 flagParser :: Parser [MoveFlag]
