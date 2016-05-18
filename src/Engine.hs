@@ -48,7 +48,3 @@ emptyOrEnemy b c p = case pieceAt b p of
 
 emptyLine :: Board -> Pos -> Pos -> Bool
 emptyLine = undefined
-
-
-
-
