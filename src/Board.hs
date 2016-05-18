@@ -62,3 +62,7 @@ pieceAt board p = listToMaybe pieces
         -- | Pieces at the given position
         pieces :: [Piece]
         pieces = filter (\piece -> p == pos piece) board
+
+enemyColor :: PieceColor -> PieceColor
+enemyColor White = Black
+enemyColor Black = White

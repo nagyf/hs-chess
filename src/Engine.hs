@@ -38,12 +38,13 @@ moves (Piece _ Knight (x,y)) = do
 
 -- | Return the legal moves of the piece
 legalMoves :: Board -> Piece -> [Pos]
-legalMoves = undefined
+legalMoves b piece@(Piece c King _) = filter (emptyOrEnemy b c) $ moves piece
+legalMoves b piece@(Piece c Knight _) = filter (emptyOrEnemy b c) $ moves piece
 
 -- | Check if a position is empty or contains an enemy piece
 emptyOrEnemy :: Board -> PieceColor -> Pos -> Bool
 emptyOrEnemy b c p = case pieceAt b p of
-    Just piece  -> color piece == c
+    Just piece  -> color piece == enemyColor c
     Nothing     -> True
 
 emptyLine :: Board -> Pos -> Pos -> Bool
