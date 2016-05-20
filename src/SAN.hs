@@ -28,7 +28,7 @@ data Move = Move PieceColor PieceType Pos -- ^ Nd6, e8
             deriving (Show)
 
 -- | A chess move with the annotations attached to it (if any)
-type AnnotatedMove = (Move, [Annotation])
+type AnnotatedMove = (Move, Maybe Annotation)
 
 -- | An annotated chess move with the necessary disambiguating prefix, if needed
 data DisambiguatedMove = None AnnotatedMove
@@ -176,16 +176,16 @@ pieceType = do
     return $ fromJust $ Map.lookup ch pieceTypes
 
 -- | Annotation parser
-annotations :: Parser [Annotation]
-annotations = checkMate <|> check <|> return []
+annotations :: Parser (Maybe Annotation)
+annotations = checkMate <|> check <|> return Nothing
 
 -- | Check annotation parser
-check :: Parser [Annotation]
-check = char '+' >> return [Check]
+check :: Parser (Maybe Annotation)
+check = char '+' >> return (Just Check)
 
 -- | Checkmate annotation parser
-checkMate :: Parser [Annotation]
-checkMate = char '#' >> return [CheckMate]
+checkMate :: Parser (Maybe Annotation)
+checkMate = char '#' >> return (Just CheckMate)
 
 -- | End of line parser, that supports all line ending formats
 eol :: Parser String
