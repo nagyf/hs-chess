@@ -27,7 +27,7 @@ data Move = Move PieceColor PieceType Pos -- ^ Nd6, e8
             | EnPassant PieceColor Int Pos -- ^ exd6e.p.
             deriving (Show)
 
--- | A chess move with the annotations attached to it (if any)
+-- | A chess move with the annotation attached to it (if any)
 type AnnotatedMove = (Move, Maybe Annotation)
 
 -- | An annotated chess move with the necessary disambiguating prefix, if needed

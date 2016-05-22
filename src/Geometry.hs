@@ -7,7 +7,14 @@ import Data.Maybe (mapMaybe)
 --   and the second represents the row
 type Pos = (Int, Int)
 
--- | Adds up 2 positions
+-- | Represents a line on the board between 2 points
+data Segment = Segment {
+        startPoint :: Pos,
+        endPoint   :: Pos,
+        points     :: [Pos]
+    } deriving (Show, Eq)
+
+-- | Adds up 2 positions x1+x2, y1+y2
 infixr 9 <+>
 (<+>) :: Pos -> Pos -> Pos
 (x1, y1) <+> (x2, y2) = (x1+x2, y1+y2)
@@ -24,15 +31,54 @@ p1 <++> p2 =
 onBoard :: Pos -> Bool
 onBoard (x, y) = x > 0 && y > 0 && x < 9 && y < 9
 
+-- | Return horizontal + vertical + diagonal segments
+allDirectionSegments :: Pos -> [Segment]
+allDirectionSegments p = crossSegments p ++ diagonalSegments p
+
+-- | Returns the diagonal segments that can be reached from a given point
+diagonalSegments :: Pos -> [Segment]
+diagonalSegments p
+    | not (onBoard p) = []
+    | otherwise =
+        let
+            ds = diagonals p
+            qs = separateQuarters p ds
+        in mapMaybe (createSegment p) qs
+
+    where
+        separateQuarters :: Pos -> [Pos] -> [[Pos]]
+        separateQuarters pp ds =
+            filter (not . null) $ concatMap (separateBy pp snd) $ separateBy pp fst ds
+
+-- | Returns the horizontal and vertical segments that can be reached from
+--   a given point
+crossSegments :: Pos -> [Segment]
+crossSegments p =
+    let
+        cs = cross p
+        qs = separateBy p fst cs ++ separateBy p snd cs
+    in mapMaybe (createSegment p) qs
+
+-- | Creates a segment based on a starting position and a set of
+--   possible ending positions
+createSegment :: Pos -> [Pos] -> Maybe Segment
+createSegment _ [] = Nothing
+createSegment p ps =
+    let
+        pss = p:ps
+        minP = minimum pss
+        maxP = maximum pss
+    in segment minP maxP
+
 -- | Return every position in a line segment between 2 positions
-segment :: Pos -> Pos -> [Pos]
+segment :: Pos -> Pos -> Maybe Segment
 segment p1 p2 =
     let m           = slope p1 p2
         (start,end) = order p1 p2
     in  case abs m of
-            1.0 -> diagonalPoints (round m) start end
-            0.0 -> normalPoints start end
-            _   -> []
+            1.0 -> Just $ Segment start end $ diagonalPoints (round m) start end
+            0.0 -> Just $ Segment start end $ hzVtPoints start end
+            _   -> Nothing
 
     where
         -- | Return positions for a section that is diagonal
@@ -41,17 +87,17 @@ segment p1 p2 =
             | otherwise = start : diagonalPoints m (start <+> (abs m, m)) end
 
         -- | Return positions for a section that is horizontal or vertical
-        normalPoints :: Pos -> Pos -> [Pos]
-        normalPoints start end
+        hzVtPoints :: Pos -> Pos -> [Pos]
+        hzVtPoints start end
             | start == end = [start]
-            | fst start /= fst end = start : normalPoints (start <+> (1, 0)) end
-            | otherwise = start : normalPoints (start <+> (0, 1)) end
+            | fst start /= fst end = start : hzVtPoints (start <+> (1, 0)) end
+            | otherwise = start : hzVtPoints (start <+> (0, 1)) end
 
         -- | Return 2 positions in order
         order :: Pos -> Pos -> (Pos, Pos)
         order start end
-            | start < end = (start,end)
-            | otherwise = (end,start)
+            | start < end = (start, end)
+            | otherwise   = (end, start)
 
 -- | Calculate the slope of a line between 2 points
 slope :: Pos -> Pos -> Float
@@ -69,10 +115,11 @@ ambientPos :: Pos -> [Pos]
 ambientPos (x,y) =
     [(x',y') | x' <- ambient x, y' <- ambient y, onBoard (x',y')]
 
+-- | Return horizontal + vertical + diagonal positions
 allDirections :: Pos -> [Pos]
 allDirections p = nub $ cross p ++ diagonals p
 
--- | Every position in the given row and the given column
+-- | Every position in the given row and column
 cross :: Pos -> [Pos]
 cross (x,y) = nub $ row y ++ column x
 
@@ -81,6 +128,16 @@ diagonals :: Pos -> [Pos]
 diagonals p = nub $ mapMaybe (p <++>) deltas
     where
         deltas = [(dx,dy) | dx <- [-8..8], dy <-[dx,-dx]]
+
+-- | Split a list of positions into 2 lists: one that contains the smaller
+--   positions and one that contains the bigger positions compared to the first
+--   parameter.
+separateBy :: Pos -> (Pos -> Int) -> [Pos] -> [[Pos]]
+separateBy p f as =
+    let
+        lt = filter (\b -> f b < f p) as
+        gt = filter (\b -> f b > f p) as
+    in [lt, gt]
 
 -- | Return the positions in a row
 row :: Int -> [Pos]
