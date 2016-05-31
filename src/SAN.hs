@@ -1,5 +1,6 @@
 module SAN (
     Move(..),
+    DisambiguatedMove(..),
     parseMoves
     ) where
 
@@ -7,158 +8,195 @@ import Prelude hiding (round)
 import Text.ParserCombinators.Parsec
 import Data.Maybe
 import Data.Map as Map
-import Control.Monad (void)
 
 import Board hiding (pieceType, color, pos)
 import Geometry hiding (row)
 
-data MoveFlag = Check
+-- | Represents annotations that added to moves,
+-- like '+' for check and '#' for checkmate
+data Annotation = Check
                 | CheckMate deriving (Show)
 
 -- | Represents a chess move
-data Move = Move PieceColor PieceType Pos [MoveFlag] -- ^ Nd6, e8
-            | Capture PieceColor PieceType Pos [MoveFlag] -- ^ Nxc4
-            | PawnCapture PieceColor Int Pos [MoveFlag] -- ^ fxa4
-            | PawnPromotion PieceColor PieceType Pos [MoveFlag] -- ^ e8Q
-            | KingSideCastle PieceColor [MoveFlag] -- ^ o-o
-            | QueenSideCastle PieceColor [MoveFlag] -- ^ o-o-o
-            | EnPassant PieceColor Int Pos [MoveFlag] -- ^ exd6e.p.
+data Move = Move PieceColor PieceType Pos -- ^ Nd6, e8
+            | Capture PieceColor PieceType Pos -- ^ Nxc4
+            | PawnCapture PieceColor Int Pos  -- ^ fxa4
+            | PawnPromotion PieceColor PieceType Pos -- ^ e8Q
+            | KingSideCastle PieceColor -- ^ 0-0
+            | QueenSideCastle PieceColor -- ^ 0-0-0
+            | EnPassant PieceColor Int Pos -- ^ exd6e.p.
             deriving (Show)
+
+-- | A chess move with the annotation attached to it (if any)
+type AnnotatedMove = (Move, Maybe Annotation)
+
+-- | An annotated chess move with the necessary disambiguating prefix, if needed
+data DisambiguatedMove = None AnnotatedMove
+                        | FromRow Int AnnotatedMove
+                        | FromColumn Int AnnotatedMove
+                        | FromPos Pos AnnotatedMove
+                        deriving (Show)
 
 -- | Parse a series of moves from the input string
 -- return either an error message or the parsed moves
-parseMoves :: String -> Either String [Move]
+parseMoves :: String -> Either ParseError [DisambiguatedMove]
 parseMoves input = case parse match "match" input of
-    Left m -> Left (show m)
-    Right moves -> Right (concatMap snd moves)
+    Left err -> Left err
+    Right moves -> Right moves
 
 -- | Parse a chess match, which consists N rounds
-match :: Parser [(Int, [Move])]
-match = manyTill round eof
+match :: Parser [DisambiguatedMove]
+match = concat <$> manyTill round eof
 
--- | A round is a white move followed by a black move
-round :: Parser (Int, [Move])
+-- | Parser for a round, i.e. a white and a black move
+round :: Parser [DisambiguatedMove]
 round = do
-    num <- roundNumber
-    whiteMove <- move White
-    blackMove <- move Black
-    return (num, [whiteMove, blackMove])
+    _ <- roundNumber
+    white <- move White
+    black <- move Black
+    skipMany whitespace >> skipMany eol
+    return [white, black]
 
--- | Parser for the number of the round
+-- | A parser for round number: e.g. "3."
 roundNumber :: Parser Int
 roundNumber = do
-    digits <- many1 digit
-    _ <- char '.' >> skipMany (space <|> tab)
-    return $ read digits
+    digits <- fmap read (many1 digit)
+    _ <- char '.' >> skipMany whitespace
+    return digits
 
--- | Parser for a single move
-move :: PieceColor -> Parser Move
+-- | A parser for a chess move
+move :: PieceColor -> Parser DisambiguatedMove
 move color =
-    try (enPassant color) <|>
-    try (pawnPromotion color) <|>
-    try (pawnCapture color) <|>
-    try (pawnMove color) <|>
-    try (normalCapture color) <|>
-    try (normalMove color) <|>
-    try (castling color)
+    try (disambiguatingMove color)
+    <|> fmap None (normalMove color)
 
-enPassant :: PieceColor -> Parser Move
-enPassant color = do
-    from <- fmap columnNameToInt columnName
-    to <- capturePos
-    flags <- string "e.p." >> endOfMove
-    return $ EnPassant color from to flags
+-- | A parser for a disambiguating chess move (this contains a prefix to denote
+-- the source position of the piece, in case of ambiguity)
+disambiguatingMove :: PieceColor -> Parser DisambiguatedMove
+disambiguatingMove color = do
+    from <- try (oneOf columnNames) <|> oneOf ['1'..'8']
+    m <- normalMove color
+    _ <- skipMany whitespace
 
-normalCapture :: PieceColor -> Parser Move
-normalCapture color = do
-    p <- pieceType
-    pos <- capturePos
-    flags <- endOfMove
-    return $ Capture color p pos flags
+    if from `elem` ['1'..'8']
+        then return (FromRow (read [from]) m)
+        else return (FromColumn (columnNameToInt from) m)
 
-pawnCapture :: PieceColor -> Parser Move
-pawnCapture color = do
-    from <- fmap columnNameToInt columnName
-    pos <- capturePos
-    flags <- endOfMove
-    return $ PawnCapture color from pos flags
-
-capturePos :: Parser Pos
-capturePos = char 'x' >> coordinate
-
-normalMove :: PieceColor -> Parser Move
+-- A parser for a chess move without ambiguity
+normalMove :: PieceColor -> Parser AnnotatedMove
 normalMove color = do
-    p <- pieceType
-    c <- coordinate
-    flags <- endOfMove
-    return $ Move color p c flags
+    m <- try(castling color)
+        <|> try (pawnPromotion color)
+        <|> try (pawnMove color)
+        <|> try (enPassant color)
+        <|> try (pawnCapture color)
+        <|> try (normalCapture color)
+        <|> standardMove color
 
-pawnMove :: PieceColor -> Parser Move
-pawnMove color = do
-    c <- coordinate
-    flags <- endOfMove
-    return $ Move color Pawn c flags
+    as <- annotations
+    _ <- skipMany whitespace
+    return (m, as)
 
+-- | Parser for castling moves
+castling :: PieceColor -> Parser Move
+castling color =
+    try (queenSideCastle color) <|>
+    try (kingSideCastle color)
+
+-- | Parser for king side castling
+kingSideCastle :: PieceColor -> Parser Move
+kingSideCastle color =
+    string "0-0" >> return (KingSideCastle color)
+
+-- | Parser for Queen side castling
+queenSideCastle :: PieceColor -> Parser Move
+queenSideCastle color =
+    string "0-0-0" >> return (QueenSideCastle color)
+
+-- | Parser for pawn promotion
 pawnPromotion :: PieceColor -> Parser Move
 pawnPromotion color = do
     c <- coordinate
     promoted <- pieceType
-    flags <- endOfMove
-    return $ PawnPromotion color promoted c flags
+    return $ PawnPromotion color promoted c
 
-castling :: PieceColor -> Parser Move
-castling color =
-    try (kingSideCastle color) <|>
-    try (queenSideCastle color)
+-- | Parser for a normal pawn move
+pawnMove :: PieceColor -> Parser Move
+pawnMove color = do
+    c <- coordinate
+    return $ Move color Pawn c
 
-kingSideCastle :: PieceColor -> Parser Move
-kingSideCastle color =
-    string "O-O" >> endOfMove >>= fmap return (KingSideCastle color)
+-- | Parser for an en passant pawn capture
+enPassant :: PieceColor -> Parser Move
+enPassant color = do
+    from <- fmap columnNameToInt columnName
+    to <- capturePos
+    _ <- string "e.p."
+    return $ EnPassant color from to
 
-queenSideCastle :: PieceColor -> Parser Move
-queenSideCastle color =
-    string "O-O-O" >> endOfMove >>= fmap return (QueenSideCastle color)
+-- | Parser for a simple capture (except pawn and en passant)
+normalCapture :: PieceColor -> Parser Move
+normalCapture color = do
+    p <- pieceType
+    pos <- capturePos
+    return $ Capture color p pos
 
-pieceType :: Parser PieceType
-pieceType = do
-    ch <- oneOf (Map.keys pieceTypes)
-    return $ fromJust $ Map.lookup ch pieceTypes
+-- | Parser for a pawn capture
+pawnCapture :: PieceColor -> Parser Move
+pawnCapture color = do
+    from <- fmap columnNameToInt columnName
+    pos <- capturePos
+    return $ PawnCapture color from pos
 
+standardMove :: PieceColor -> Parser Move
+standardMove color = do
+    p <- pieceType
+    c <- coordinate
+    return $ Move color p c
+
+-- | Parser for an 'x' followed by a position
+capturePos :: Parser Pos
+capturePos = char 'x' >> coordinate
+
+-- | Parser for a (Int,Int) (i.e. for a board position)
 coordinate :: Parser Pos
 coordinate = do
     col <- fmap columnNameToInt columnName
     row <- read <$> many1 digit
     return (col, row)
 
+-- | Column name parser
 columnName :: Parser Char
 columnName = oneOf columnNames
 
-endOfLine :: Parser ()
-endOfLine =
-    void (try (string "\n\r")
+-- | Piece type parser
+pieceType :: Parser PieceType
+pieceType = do
+    ch <- oneOf (Map.keys pieceTypes)
+    return $ fromJust $ Map.lookup ch pieceTypes
+
+-- | Annotation parser
+annotations :: Parser (Maybe Annotation)
+annotations = checkMate <|> check <|> return Nothing
+
+-- | Check annotation parser
+check :: Parser (Maybe Annotation)
+check = char '+' >> return (Just Check)
+
+-- | Checkmate annotation parser
+checkMate :: Parser (Maybe Annotation)
+checkMate = char '#' >> return (Just CheckMate)
+
+-- | End of line parser, that supports all line ending formats
+eol :: Parser String
+eol = try (string "\n\r")
     <|> try (string "\r\n")
     <|> string "\n"
-    <|> string "\r")
+    <|> string "\r"
 
-endOfMove :: Parser [MoveFlag]
-endOfMove = try eomWithFlags <|> eomWithoutFlags
-    where
-        eomWithoutFlags :: Parser [MoveFlag]
-        eomWithoutFlags = skipMany space >> skipMany endOfLine >> return []
-
-        eomWithFlags :: Parser [MoveFlag]
-        eomWithFlags = do
-            flags <- flagParser
-            skipMany space >> skipMany endOfLine
-            return flags
-
-flagParser :: Parser [MoveFlag]
-flagParser = do
-    flag <- oneOf ['+', '#']
-    case flag of
-        '+' -> return [Check]
-        '#' -> return [CheckMate]
-        _   -> return []
+-- | Whitespace (i.e. space and tab) parser
+whitespace :: Parser Char
+whitespace = space <|> tab
 
 -- | Converts a column label to a number
 columnNameToInt :: Char -> Int
@@ -169,6 +207,7 @@ columnNameToInt ch = fromJust $ Map.lookup ch columnNameMapping
 columnNameMapping :: Map Char Int
 columnNameMapping = Map.fromList $ zip columnNames [1..]
 
+-- | The possible column labels
 columnNames :: String
 columnNames = ['a'..'h']
 

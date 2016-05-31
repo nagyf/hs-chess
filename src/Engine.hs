@@ -3,6 +3,7 @@ module Engine where
 import Control.Monad
 import Board
 import Geometry
+import Data.List (nub)
 
 -- | Return the white pieces from the board
 whites :: Board -> [Piece]
@@ -38,14 +39,37 @@ moves (Piece _ Knight (x,y)) = do
 
 -- | Return the legal moves of the piece
 legalMoves :: Board -> Piece -> [Pos]
-legalMoves b piece@(Piece c King _) = filter (emptyOrEnemy b c) $ moves piece
+legalMoves b piece@(Piece c King _)   = filter (emptyOrEnemy b c) $ moves piece
 legalMoves b piece@(Piece c Knight _) = filter (emptyOrEnemy b c) $ moves piece
+legalMoves b piece@(Piece c Pawn _)   = filter (emptyOrEnemy b c) $ moves piece
+legalMoves b piece@(Piece c Bishop p) = nub $ legalMovesInLine b p (moves piece)
+legalMoves b piece@(Piece c Rook _)   = filter (emptyOrEnemy b c) $ moves piece
+legalMoves b piece@(Piece c Queen _)  = filter (emptyOrEnemy b c) $ moves piece
+
+legalMovesInLine :: Board -> Pos -> [Pos] -> [Pos]
+legalMovesInLine _ _ [] = []
+legalMovesInLine b start (p:ps) =
+    if emptySegment b (segment start p)
+        then p : legalMovesInLine b start ps
+        else legalMovesInLine b start ps
 
 -- | Check if a position is empty or contains an enemy piece
 emptyOrEnemy :: Board -> PieceColor -> Pos -> Bool
-emptyOrEnemy b c p = case pieceAt b p of
-    Just piece  -> color piece == enemyColor c
-    Nothing     -> True
+emptyOrEnemy b c p = enemy b c p || empty b p
 
-emptyLine :: Board -> Pos -> Pos -> Bool
-emptyLine = undefined
+-- | Check if a position is contains an enemy piece
+enemy :: Board -> PieceColor -> Pos -> Bool
+enemy b c p = case pieceAt b p of
+    Just piece  -> color piece == enemyColor c
+    Nothing     -> False
+
+-- | Check if a position is empty
+empty :: Board -> Pos -> Bool
+empty b p = case pieceAt b p of
+    Just _  -> False
+    Nothing -> True
+
+-- | Check if every position of a line is empty
+emptySegment :: Board -> Maybe Segment -> Bool
+emptySegment _ Nothing = False
+emptySegment b (Just s) = all (empty b) (points s)
